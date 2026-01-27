@@ -1,4 +1,4 @@
-Here is a comprehensive `README.md` file for your GitHub repository. It covers installation, usage, the mathematical background of the optimizations, and performance tuning for Slurm clusters.
+This README.md covers installation, usage, the mathematical background of the optimizations, and performance tuning for Slurm clusters.
 
 ***
 

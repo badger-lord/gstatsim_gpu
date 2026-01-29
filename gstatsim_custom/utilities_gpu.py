@@ -13,13 +13,12 @@ from cuml.preprocessing import QuantileTransformer as GPU_QuantileTransformer
 from copy import deepcopy
 import skgstat as skg
 
-def gaussian_transformation_gpu(grid, cond_msk, n_quantiles=500, cpu_fit=False, cpu_transformer=None, random_state=0):
+def gaussian_transformation_gpu(grid, cond_msk, n_quantiles=500, cpu_fit=False, cpu_transformer=None, random_state=0, dtype=cp.float64):
     """
     Apply Normal Score Transformation (Gaussian Anamorphosis).
-    
     Transforms data to a standard normal distribution (mean=0, std=1), which is
     required for Multi-Gaussian Kriging/Simulation.
-    
+
     Parameters:
     -----------
     grid : cp.ndarray
@@ -29,13 +28,6 @@ def gaussian_transformation_gpu(grid, cond_msk, n_quantiles=500, cpu_fit=False, 
     cpu_fit : bool
         If True, use sklearn (CPU) transformer for exact reproducibility with CPU codes.
         If False, use cuML (GPU) transformer for speed.
-        
-    Returns:
-    --------
-    grid_norm : cp.ndarray
-        The transformed grid.
-    transformer : object
-        The fitted transformer object (needed for back-transformation).
     """
     data_cond = grid[cond_msk].reshape(-1, 1)
     
@@ -45,11 +37,11 @@ def gaussian_transformation_gpu(grid, cond_msk, n_quantiles=500, cpu_fit=False, 
         # Move to CPU, transform, move back
         data_cond_cpu = cp.asnumpy(data_cond)
         norm = cpu_transformer.transform(data_cond_cpu).squeeze()
-        norm_gpu = cp.asarray(norm, dtype=cp.float64)
+        norm_gpu = cp.asarray(norm, dtype=dtype)
         nqt = cpu_transformer
     else:
         # Fit cuML (GPU) transformer
-        # Note: We move to CPU to fit to ensure deterministic behavior if needed, 
+        # Note: We move to CPU to fit to ensure deterministic behavior if needed,
         # then move back. cuML can fit on GPU directly too.
         data_cond_cpu = cp.asnumpy(data_cond)
         nqt = GPU_QuantileTransformer(
@@ -59,14 +51,14 @@ def gaussian_transformation_gpu(grid, cond_msk, n_quantiles=500, cpu_fit=False, 
         ).fit(data_cond_cpu)
         
         norm = nqt.transform(data_cond_cpu).squeeze()
-        norm_gpu = cp.asarray(norm, dtype=cp.float64)
-        
-    grid_norm = cp.full(grid.shape, cp.nan, dtype=cp.float64)
+        norm_gpu = cp.asarray(norm, dtype=dtype)
+    
+    grid_norm = cp.full(grid.shape, cp.nan, dtype=dtype)
     grid_norm[cond_msk] = norm_gpu
     
     return grid_norm, nqt
 
-def dists_to_cond_gpu(xx, yy, grid):
+def dists_to_cond_gpu(xx, yy, grid, dtype=cp.float64):
     """Calculate nearest distance to any conditioning data point for every grid cell."""
     cond_msk = ~cp.isnan(grid)
     x_cond = xx[cond_msk]
@@ -78,16 +70,16 @@ def dists_to_cond_gpu(xx, yy, grid):
     
     # Process in chunks to save memory
     chunk = 20000
-    min_dists = cp.full(n_points, cp.inf, dtype=cp.float64)
+    min_dists = cp.full(n_points, cp.inf, dtype=dtype)
     
     for i in range(0, n_points, chunk):
         end = min(n_points, i + chunk)
-        xs = xx_flat[i:end][:, None].astype(cp.float64)
-        ys = yy_flat[i:end][:, None].astype(cp.float64)
+        xs = xx_flat[i:end][:, None].astype(dtype)
+        ys = yy_flat[i:end][:, None].astype(dtype)
         
         dx = xs - x_cond[None, :]
         dy = ys - y_cond[None, :]
-        d = cp.sqrt(dx**2 + dy**2, dtype=cp.float64)
+        d = cp.sqrt(dx**2 + dy**2, dtype=dtype)
         
         min_dists[i:end] = cp.min(d, axis=1)
         
@@ -107,7 +99,7 @@ def variograms_gpu(xx, yy, grid, bin_func='even', maxlag=100e3, n_lags=70,
                    downsample=None, cpu_fit_transformer=None, use_cpu_transformer=False):
     """
     Compute experimental variograms using scikit-gstat (runs on CPU).
-    
+
     Parameters:
     -----------
     xx, yy, grid : cp.ndarray
@@ -116,7 +108,7 @@ def variograms_gpu(xx, yy, grid, bin_func='even', maxlag=100e3, n_lags=70,
         List of theoretical models to fit to the experimental data.
     downsample : int
         If data is too large, take every Nth point to speed up calculation.
-        
+
     Returns:
     --------
     vgrams : dict
@@ -136,6 +128,7 @@ def variograms_gpu(xx, yy, grid, bin_func='even', maxlag=100e3, n_lags=70,
     x_cond = xx[cond_msk]
     y_cond = yy[cond_msk]
     data_norm = grid_norm[cond_msk]
+    
     coords_cond = cp.stack([x_cond, y_cond], axis=1)
     
     # Downsample if requested

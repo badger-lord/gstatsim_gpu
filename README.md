@@ -6,7 +6,7 @@ This README.md covers installation, usage, the mathematical background of the op
 
 A high-performance Python package for Geostatistical Simulation (SGS) and Kriging on GPU-accelerated clusters.
 
-This repository contains optimized solvers for **Sequential Gaussian Simulation (SGS)** and **Kriging** (Simple/Ordinary) designed to run on high-end NVIDIA GPUs (A100, H100, B200). It leverages CuPy for tensor operations and custom CUDA kernels for mathematical precision.
+This repository contains optimized solvers for **Sequential Gaussian Simulation (SGS)** and **Kriging** (Simple/Ordinary) designed to run on high-end NVIDIA GPUs (L4s - > B200). It leverages CuPy for tensor operations and custom CUDA kernels for mathematical precision.
 
 ## 🚀 Key Features
 
@@ -50,26 +50,10 @@ This repository contains optimized solvers for **Sequential Gaussian Simulation 
 *   **CUDA Toolkit** (11.x or 12.x)
 *   **Python** 3.9+
 
-### Environment Setup (Conda)
-It is highly recommended to use Conda to manage CuPy dependencies.
+### Environment Setup (Singularity)
+Using the NVIDIA RAPIDS container from NGC
 
-```bash
-# 1. Create Environment
-conda create -n gstatsim_gpu python=3.10
-conda activate gstatsim_gpu
-
-# 2. Install CuPy (Choose the version matching your CUDA driver)
-# For CUDA 12.x:
-pip install cupy-cuda12x
-# For CUDA 11.x:
-# pip install cupy-cuda11x
-
-# 3. Install Scientific Stack
-conda install numpy pandas matplotlib xarray netcdf4 scipy tqdm
-
-# 4. Install Plotting Utilities (Optional)
-pip install cmcrameri
-```
+```singularity pull rapids_25.06.sif docker://rapidsai/rapidsai:25.06-cuda12.2-py3.10```
 
 ***
 
@@ -94,7 +78,7 @@ python scripts/full_sim.py \
 *   `--radius`: Search radius in meters.
 
 ### 2. Running on Slurm
-Use the provided batch script for HPC clusters.
+Use the provided batch script for HPG cluster.
 
 ```bash
 sbatch scripts/run_slurm.sh
@@ -125,10 +109,8 @@ We avoid building a KDTree (which is slow to query on GPU for moving data). Inst
 
 | Hardware | VRAM | Dtype | Max Batch Size | Speed (pts/sec) |
 | :--- | :--- | :--- | :--- | :--- |
-| **NVIDIA B200** | 180GB | float32 | 250,000+ | ~25,000 |
-| **NVIDIA A100** | 80GB | float32 | 64,000 | ~12,000 |
-| **NVIDIA V100** | 32GB | float64 | 8,192 | ~4,500 |
-| **Consumer (RTX 3090)** | 24GB | float32 | 16,384 | ~6,000 |
+| **NVIDIA B200** | 180GB | float32 | 65536 | ~42,000 |
+| **L4** | 24GB | float32 | 4096 | ~8,000 |
 
 *If you encounter OOM errors, reduce `--batch_size`.*
 

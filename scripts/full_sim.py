@@ -168,7 +168,7 @@ def main():
             quiet=False,
             sim_mask=ice_rock_msk_gpu,
             max_memory_gb=150.0,
-            dtype=dtype  
+            dtype=dtype  # <--- PASSING THE CHOSEN PRECISION HERE
         )
 
     except Exception as e:

@@ -1,11 +1,11 @@
 """
 besselk_gpu.py
 
-This module implements the Modified Bessel function of the second kind (K_nu) 
+This module implements the Modified Bessel function of the second kind (K_nu)
 for GPU execution using CuPy.
 
-It uses a raw CUDA kernel containing Temme's method and Chebyshev polynomial 
-expansions to ensure high precision and performance, which is necessary for 
+It uses a raw CUDA kernel containing Temme's method and Chebyshev polynomial
+expansions to ensure high precision and performance, which is necessary for
 calculating Matern covariance functions on the GPU.
 """
 
@@ -75,30 +75,34 @@ __constant__ double g2_dat[15] = {
 __constant__ int d_intervals = 128;
 
 // Helper: Evaluate Chebyshev series
-__device__ void cheb_eval_cuda(const double* c_data, int order, double a, double b,
+__device__ void cheb_eval_cuda(const double* c_data, int order, double a, double b, 
                                const double x, double* result) {
     int j;
     double d = 0.0;
     double dd = 0.0;
     double y = (2.0 * x - a - b) / (b - a);
     double y2 = 2.0 * y;
+    
     for (j = order; j >= 1; j--) {
         double temp = d;
         d = y2 * d - dd + c_data[j];
         dd = temp;
     }
+    
     d = y * d - dd + 0.5 * c_data[0];
     *result = d;
 }
 
 // Helper: Temme's gamma function approximation
-__device__ void temme_gamma(const double nu, double* g_1pnu, double* g_1mnu,
+__device__ void temme_gamma(const double nu, double* g_1pnu, double* g_1mnu, 
                             double* g1, double* g2) {
     double anu = fabs(nu);
     double x = 4.0 * anu - 1.0;
     double r_g1, r_g2;
+    
     cheb_eval_cuda(g1_dat, 13, -1.0, 1.0, x, &r_g1);
     cheb_eval_cuda(g2_dat, 14, -1.0, 1.0, x, &r_g2);
+    
     *g1 = r_g1;
     *g2 = r_g2;
     *g_1mnu = 1.0 / (r_g2 + nu * r_g1);
@@ -106,7 +110,7 @@ __device__ void temme_gamma(const double nu, double* g_1pnu, double* g_1mnu,
 }
 
 // Helper: Scaled Bessel K using Temme's method
-__device__ void besselk_scaled_temme(const double nu, const double x,
+__device__ void besselk_scaled_temme(const double nu, const double x, 
                                      double* K_nu, double* K_nup1, double* Kp_nu) {
     const int max_iter = 15000;
     const double half_x = 0.5 * x;
@@ -214,13 +218,14 @@ __device__ double modified_besselk(double nu, double x) {
             double term = log(c_m) + g_m;
             sum += exp(term - max_term);
         }
+        
         double res = log(h) + max_term + log(sum);
         return exp(res);
     }
 }
 
 extern "C" {
-    __global__ void besselk_kernel(const double* __restrict__ nu,
+    __global__ void besselk_kernel(const double* __restrict__ nu, 
                                    const double* __restrict__ x,
                                    double* __restrict__ out,
                                    const int n,
@@ -243,6 +248,7 @@ extern "C" {
         if (scaled && isfinite(result)) {
             result *= exp(x_val);
         }
+        
         out[idx] = result;
     }
 }
@@ -251,7 +257,6 @@ extern "C" {
 # -------------------------------------------------------------------------
 # Kernel Compilation and Interface
 # -------------------------------------------------------------------------
-
 # Global variables for lazy compilation (compile only when first used)
 _besselk_module = None
 _besselk_kernel = None
@@ -271,10 +276,10 @@ def _get_kernel():
             raise RuntimeError(f"Failed to compile CUDA kernel: {e}")
     return _besselk_kernel
 
-def kv_gpu(nu, x, scaled=False):
+def kv_gpu(nu, x, scaled=False, dtype=cp.float64):
     """
     Compute modified Bessel function of the second kind K_nu(x) on GPU.
-    
+
     Parameters:
     -----------
     nu : array_like or float
@@ -283,13 +288,16 @@ def kv_gpu(nu, x, scaled=False):
         Argument of the Bessel function (x > 0).
     scaled : bool, optional
         If True, return K_nu(x) * exp(x). Default is False.
-        
+    dtype : cp.dtype
+        The requested output precision. 
+        Note: Internal calculation is always float64.
+
     Returns:
     --------
     cupy.ndarray
         Values of K_nu(x).
     """
-    # Convert inputs to CuPy arrays
+    # Convert inputs to CuPy arrays (FORCE FLOAT64 FOR KERNEL)
     nu_arr = cp.asarray(nu, dtype=cp.float64)
     x_arr = cp.asarray(x, dtype=cp.float64)
     
@@ -302,13 +310,13 @@ def kv_gpu(nu, x, scaled=False):
     nu_flat = nu_broadcast.ravel()
     x_flat = x_broadcast.ravel()
     
-    # Prepare output array
+    # Prepare output array (float64)
     out = cp.empty_like(nu_flat, dtype=cp.float64)
     n = out.size
     
     if n == 0:
-        return out.reshape(out_shape)
-    
+        return out.reshape(out_shape).astype(dtype)
+        
     # Get the compiled kernel
     kernel = _get_kernel()
     
@@ -322,7 +330,8 @@ def kv_gpu(nu, x, scaled=False):
         (nu_flat, x_flat, out, n, int(bool(scaled)))
     )
     
-    return out.reshape(out_shape)
+    # Return as requested dtype
+    return out.reshape(out_shape).astype(dtype)
 
 # -------------------------------------------------------------------------
 # Compatibility Functions (For C-style interface if needed)
@@ -339,7 +348,7 @@ def initBesselK():
 def BesselK_CUDA(host_x, host_v, host_result, n):
     """
     Compute Bessel K function with a C-compatible interface.
-    
+
     Parameters:
     -----------
     host_x, host_v : array_like

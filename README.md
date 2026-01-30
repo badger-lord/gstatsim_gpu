@@ -74,7 +74,7 @@ python scripts/full_sim.py \
 
 **Arguments:**
 *   `--batch_size`: Number of points to simulate per GPU cycle. (Recommended: 8192-16384 for A100/H100).
-*   `--dtype`: `float32` (Faster/Less RAM) or `float64` (Higher Precision).
+*   `--dtype`: `float64` (Higher Precision). `float32` (Faster/Less RAM) However currently producing nans
 *   `--radius`: Search radius in meters.
 
 ### 2. Running on Slurm
@@ -109,8 +109,8 @@ We avoid building a KDTree (which is slow to query on GPU for moving data). Inst
 
 | Hardware | VRAM | Dtype | Max Batch Size | Speed (pts/sec) |
 | :--- | :--- | :--- | :--- | :--- |
-| **NVIDIA B200** | 180GB | float32 | 65536 | ~42,000 |
-| **L4** | 24GB | float32 | 4096 | ~8,000 |
+| **NVIDIA B200** | 180GB | float64 | 65536 | ~42,000 |
+| **L4** | 24GB | float64 | 4096 | ~8,000 |
 
 *If you encounter OOM errors, reduce `--batch_size`.*
 

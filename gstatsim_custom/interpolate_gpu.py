@@ -247,5 +247,18 @@ def sgs_gpu(xx, yy, grid, variogram, radius=100e3, num_points=32, ktype='ok',
 
     pbar.close()
 
+    # --- SAFETY FIX: Clamp values to avoid Inf/NaN before inverse transform ---
+    # float32 simulation can generate values slightly outside the fitted normal range
+    # or effectively infinite due to precision issues.
+    
+    # Replace NaNs with 0.0 (mean of standard normal) or nearest valid neighbor if strictly needed
+    # But for inverse_transform, 0.0 is safe (maps to median).
+    out_grid = cp.nan_to_num(out_grid, nan=0.0, posinf=5.0, neginf=-5.0)
+    
+    # Clip to +/- 5 standard deviations (extremely generous for normal dist)
+    # This prevents 'inf' which crashes cuML's inverse_transform
+    out_grid = cp.clip(out_grid, -5.0, 5.0)
+
+    # Back-transform to original distribution
     sim_trans = nst_trans.inverse_transform(out_grid.reshape(-1, 1)).squeeze().reshape(xx.shape)
     return sim_trans

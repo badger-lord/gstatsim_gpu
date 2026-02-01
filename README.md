@@ -109,9 +109,11 @@ We avoid building a KDTree (which is slow to query on GPU for moving data). Inst
 
 | Hardware | VRAM | Dtype | Max Batch Size | Speed (pts/sec) |
 | :--- | :--- | :--- | :--- | :--- |
-| **NVIDIA B200** | 180GB | float64 | 65536 | ~42,000 |
-| **NVIDIA B200** | 180GB | float64 | 16384 | ~55,000 |
-| **L4** | 24GB | float64 | 4096 | ~8,000 |
+| **NVIDIA B200** | 180GB | float64 | 65536 | ~55,000 |
+| **NVIDIA B200** | 180GB | float64 | 16384 | ~50,000 |
+| **L4** | 24GB | float64 | 8192 | ~8,000 |
+| **L4** | 24GB | float64 | 4096 | ~4,500 |
+| **L4** | 24GB | float64 | 2048 | ~4,000 |
 
 *If you encounter OOM errors, reduce `--batch_size`.*
 

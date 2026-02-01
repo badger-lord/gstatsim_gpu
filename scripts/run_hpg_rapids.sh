@@ -7,8 +7,8 @@
 #SBATCH --mem=64gb                    # Job memory request
 #SBATCH --time=04:00:00               # Time limit hrs:min:sec
 #SBATCH --output=logs/sgs_%j.log      # Standard output and error log
-#SBATCH --partition=hpg-b200          # The B200 GPU partition on HPG, also HPG-turin for L4s
-#SBATCH --gpus=b200:1                 # Request 1 B200 GPU
+#SBATCH --partition=hpg-turin          # The  hpg-b200 for B200 GPU partition on HPG, also HPG-turin for L4s
+#SBATCH --gpus=l4:1                 # Request 1 B200 GPU b200:1, or 1 L4 l4:1
 #SBATCH --account=vendor-nvidia     # Your UFRC account/group
 #SBATCH --qos=vendor-nvidia          # Your QOS (usually same as group name)
 
@@ -42,11 +42,11 @@ echo "Project Root: $PROJECT_ROOT"
 # --nv       : Passes the GPU drivers into the container (CRITICAL)
 # --bind     : Mounts your project folder inside the container so Python can see your code
 
-For our case
+# For our case
 # python     : Runs the python command inside that container environment
-
+# Batch sizes power of 2's  B200s: #65536, 16384, L4s: 8192,4096, 2048
 python /blue/vendor-nvidia/smith.kaleb/gstatsim_custom/full_sim.py \
-    --batch_size 16384 \
+    --batch_size 8192 \
     --radius 50000 \
     --seed $SLURM_JOB_ID \
     --dtype float64 \

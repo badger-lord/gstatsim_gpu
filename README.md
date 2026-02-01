@@ -68,7 +68,7 @@ python scripts/full_sim.py \
     --vario_path "./data/variogram.nc" \
     --batch_size 16384 \
     --radius 50000 \
-    --dtype float32 \
+    --dtype float64 \
     --output_dir "./results"
 ```
 
